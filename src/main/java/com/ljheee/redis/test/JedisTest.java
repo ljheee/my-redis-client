@@ -2,12 +2,9 @@ package com.ljheee.redis.test;
 
 import redis.clients.jedis.Jedis;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Random;
-
 /**
- * Created by lijianhua04 on 2018/9/7.
+ * 和 SocketListener 配合使用
+ * SocketListener启动后，运行JedisTest
  */
 public class JedisTest {
 
@@ -17,7 +14,6 @@ public class JedisTest {
 
         System.out.println(jedis.set("abc", "110"));
         System.out.println(jedis.get("mt"));
-
 
     }
 
