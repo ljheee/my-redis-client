@@ -2,10 +2,10 @@
 Redis底层协议RESP详解
 #### RESP 
 > 文章开始前，先放出两道面试题
-1.能谈谈Redis使用的协议吗?
+1.Redis底层，使用的什么协议?
 2.RESP是什么，在Redis怎么体现的?
 
-如果你早于知道答案，那么很好，可以温故知新了。
+带着这两个问题，来一探究竟。
 
 #### 什么是 RESP？
 是基于TCP的应用层协议 RESP(REdis Serialization Protocol)；
@@ -43,10 +43,16 @@ RESP在Redis中用作请求-响应协议的方式如下：
 #### RESP验证
 既然我们知道，Redis客户端与server端通信，本身就是基于tcp的一个Request/Response模式。并且jedis与redis底层通信基于socket，是遵循resp通信协议。
 我们不妨用网络抓包工具，拦截客户端与server端传输的数据、一探究竟。
-实验：使用jedis客户端向server端发送命令，拦截TCP数据传输(Redis6379端口)，深度探究RESP协议。
+实验：使用jedis客户端向server端发送命令，拦截TCP数据传输(Redis 6379端口)，深度探究RESP协议。
 这里使用的工具自行发挥，tcpdump、wireshark均可。目标就是抓到6379端口的传输数据。
 
-曾经看到一个老师，Windows下安装的Redis，然后写的如下程序进行监听：
+我这里选择了一种取巧的方式：
+因为我们经常使用redis-cli客户端操作Redis，既然redis-cli作为官方提供的Redis客户端，必然遵循了RESP协议；
+我们使用redis-cli操作redis-server，大胆推断肯定是redis-cli基于RESP和redis-server的6379端口进行了通信。
+那么，我们使用一个demo程序(SocketListener)，监听本地的6379端口，接收到数据就打印；
+另外，使用redis-cli客户端执行set key value，看看向6379端口发送了什么。
+ps：SocketListener先运行，再在redis-cli窗口执行命令。
+
 当用redis-cli客户端发送命令时会打印
 ```
 public class SocketListener {
@@ -59,7 +65,7 @@ public class SocketListener {
     }
 }
 ```
-如果没有TCP监控工具的同学，可以验证一下这个这种方式。
+如果没有TCP监控工具的同学，可以通过这种方式验证。
 
 
 最后给出拦截到的TCP数据：
@@ -75,14 +81,14 @@ value
 ```
 第一次看到这个通信协议串，看不懂不必担心，我们按照RESP的协议说明慢慢看，并且下文会有详细的讲解。
 这里大概翻译一下这段传输的数据含义：
-第一行*3表示这条发给Redis server的命令是数组，数组有3个元素(其实就是SET、key、value这仨字符串)；
+- 第一行*3表示这条发给Redis server的命令是数组，数组有3个元素(其实就是SET、key、value这仨字符串)；
 后面的6行数据，分别是对数组三个元素的表示，每个元素用两行；
-数组第一个元素：`$3 SET` $3代表Bulk Strings字符串长度为3，内容是SET。
-数组第二个元素：`$3 key` $3代表Bulk Strings字符串长度为3，key。
-数组第三个元素：`$5 value` $5代表Bulk Strings字符串长度为5，内容是value。
+- 数组第一个元素：`$3 SET` $3代表Bulk Strings字符串长度为3，内容是SET。
+- 数组第二个元素：`$3 key` $3代表Bulk Strings字符串长度为3，key。
+- 数组第三个元素：`$5 value` $5代表Bulk Strings字符串长度为5，内容是value。
 
 是不是很简单呢。RESP协议传输的数据，不仅人类可读、容易实现，还解析快。
-我继续验证，Redis最常用的客户端工具jedis是否也是同样的格式呢？
+我们继续验证，Redis最常用的客户端工具jedis是否也是同样的格式呢？
 ```
     public static void main(String[] args) {
         Jedis jedis = new Jedis("127.0.0.1", 6379);
@@ -92,9 +98,9 @@ value
 ```
 结果是肯定的，使用TCP抓包工具、获取到Jedis客户端发给Redis server的数据也是上面的格式。
 
-Jedis有关的结论
-Jedis跟redis通过socket建立通讯。
-Jedis与redis服务通讯，本质是通过socke（长连接），发送由resp协议规定的命令。
+###### Jedis客户端小结
+Jedis跟redis通过socket建立通信。
+Jedis与redis服务进行交互通信，本质是通过socke（长连接），发送由resp协议规定的指令集。
 AOF持久化方式：就是存储了resp指令。可以查看.aof持久化文件。
 
 ---
@@ -110,7 +116,7 @@ Simple Strings用于以最小的开销、传输非二进制安全字符串。例
 
 
 ####　RESP错误
-RESP具有特定的错误数据类型。实际上错误与RESP Simple Strings完全相同，但第一个字符是减' - '字符而不是加号。RESP中简单字符串和错误之间的真正区别在于客户端将错误视为异常，组成错误类型的字符串是错误消息本身。
+RESP具有特定的错误数据类型。实际上错误与RESP Simple Strings完全相同，但第一个字符是减`-`字符而不是加号。RESP中简单字符串和错误之间的真正区别在于客户端将错误视为异常，组成错误类型的字符串是错误消息本身。
 基本格式是：`-ERR errorMsg\r\n`
 错误回复仅在发生错误时发送，例如，如果你尝试对错误的数据类型执行操作，或者命令不存在等等。收到错误答复时，库客户端应引发异常。
 以下是错误回复的示例：
@@ -120,7 +126,7 @@ RESP具有特定的错误数据类型。实际上错误与RESP Simple Strings完
 ```
 “-”之后的第一个单词，直到第一个空格或换行符，表示返回的错误类型。这只是Redis使用的约定，不是RESP错误格式的一部分。
 例如，ERR是一般错误，而WRONGTYPE更具体的错误意味着客户端尝试对错误的数据类型执行操作。这称为错误前缀，是一种允许客户端理解服务器返回的错误类型的方法，而不依赖于给定的确切消息，这可能随时间而变化。
-下面是几个使用redis-cli好的实际错误的例子：
+下面是几个使用redis-cli的实际错误的例子：
 ```
 127.0.0.1:6379> TaoBeier
 -ERR unknown command 'TaoBeier'\r\n  # 服务端实际返回, 下同
@@ -136,7 +142,7 @@ RESP具有特定的错误数据类型。实际上错误与RESP Simple Strings完
 
 
 ####　整数类型
-此类型只是一个CRLF终止的字符串，表示一个以“：”字节为前缀的整数。例如`:0 \r\n`或`:1000 \r\n`是整数回复。
+此类型只是一个CRLF终止的字符串，表示一个以`：`字节为前缀的整数。例如`:0 \r\n`或`:1000 \r\n`是整数回复。
 
 很多Redis命令返回RESP整数类型，比如INCR，LLEN和LASTSAVE。
 返回的整数没有特殊含义，它只是INCR的增量数，LASTSAVE的UNIX时间等等。但是，返回的整数保证在有符号的64位整数范围内。
@@ -148,7 +154,7 @@ RESP具有特定的错误数据类型。实际上错误与RESP Simple Strings完
 
 ####　Bulk Strings类型
 翻译过来，是指批量、多行字符串。
-Bulk Strings用于表示长度最大为512 MB的单个二进制安全字符串。
+Bulk Strings用于表示长度最大为512MB的单个二进制安全字符串。
 批量字符串按以下方式编码：
 - 一个“$”字节后跟组成字符串的字节数（一个前缀长度），由CRLF终止。
 - 实际的字符串数据。
@@ -204,5 +210,5 @@ ljheee\r\n
 返回的结果，*2代表数组长度为2，数组的第一个元素$3是长度为三的字符串abc；数组的第二个元素$6是长度为6的字符串ljheee。
 
 好了，到这里我们了解了Redis底层通信协议的各个类型，基于此，我们可以实现自己的Redis客户端。
-
+（手写Redis客户端，请看下文）
 

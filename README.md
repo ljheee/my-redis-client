@@ -2,8 +2,9 @@
 
 
 
-![](redis-resp.png)
-![](/image/soclet_listener.png)
+![avator](/redis-resp.png)
+![avator](../redis-resp.png)
+![avator](/image/soclet_listener.png)
 
 
 
@@ -11,6 +12,3 @@
 
 
 
-
-markdown本地图片插入文本
-https://blog.csdn.net/lin_not_for_codes/article/details/58272136
