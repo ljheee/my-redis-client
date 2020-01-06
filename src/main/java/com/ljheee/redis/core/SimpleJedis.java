@@ -2,16 +2,18 @@ package com.ljheee.redis.core;
 
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
 
 /**
+ * 简洁版-Redis客户端
  * A new redis client for Java.
  */
-public class MyJedis {
+public class SimpleJedis {
 
     private Socket socket = null;
 
-    public MyJedis() {
+    public SimpleJedis() {
         try {
             socket = new Socket("127.0.0.1", 6379);
 
@@ -44,31 +46,12 @@ public class MyJedis {
         stringBuilder.append(value).append("\r\n");
         socket.getOutputStream().write(stringBuilder.toString().getBytes());
 
-        byte b[] = new byte[1024];
-        socket.getInputStream().read(b);
+        InputStream inputStream = socket.getInputStream();
+        byte b[] = new byte[inputStream.available()];
+        inputStream.read(b);
         return new String(b);
     }
 
-    public String get0(final String key) throws IOException {
-
-        StringBuilder sb = new StringBuilder();
-
-        sb.append("*2").append("\r\n");
-
-        sb.append("$3").append("\r\n");
-
-        sb.append("GET").append("\r\n");
-
-        sb.append("$6").append("\r\n");
-
-        sb.append("wukong").append("\r\n");
-
-        socket.getOutputStream().write(sb.toString().getBytes());
-
-        byte b[] = new byte[1024];
-        socket.getInputStream().read(b);
-        return new String(b);
-    }
 
     public String get(final String key) throws IOException {
 
@@ -86,20 +69,18 @@ public class MyJedis {
 
         socket.getOutputStream().write(sb.toString().getBytes());
 
+        InputStream inputStream = socket.getInputStream();
         byte b[] = new byte[1024];
-        socket.getInputStream().read(b);
-        return new String(b).split("\r\n")[1];
+        int len = inputStream.read(b);
+        return new String(b, 0, len).split("\r\n")[1];
     }
 
 
     public static void main(String[] args) throws IOException {
-        MyJedis myJedis = new MyJedis();
+        SimpleJedis myJedis = new SimpleJedis();
 
-
-        System.out.println(myJedis.set("mt","2019"));
-        System.out.println(myJedis.get("mt"));
-
-
+        System.out.println(myJedis.set("mt", "2020"));//+OK
+        System.out.println(myJedis.get("mt"));// "2020"
     }
 
 }

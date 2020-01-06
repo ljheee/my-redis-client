@@ -7,6 +7,7 @@ import java.net.Socket;
 
 /**
  * 传输层
+ * 负责连接的建立，数据发送与接收
  */
 public class Connection {
 
@@ -40,13 +41,15 @@ public class Connection {
     }
 
     public String getStatusReply() {
-        byte[] bytes = new byte[1024];
         try {
-            socket.getInputStream().read(bytes);
+            byte[] bytes = new byte[1024];
+            inputStream.available();
+            int len = inputStream.read(bytes);
+            return new String(bytes, 0, len);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return new String(bytes);
+        return null;
     }
 
 

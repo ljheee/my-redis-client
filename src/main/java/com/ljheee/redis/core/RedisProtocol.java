@@ -4,7 +4,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * redis 消息协议层
+ * redis客户端
+ * 消息协议层
  */
 public class RedisProtocol {
 
